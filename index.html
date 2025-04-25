@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Dashboard</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .search-bar {
+            padding: 10px;
+            border-radius: 20px;
+            width: 100%;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+        .market-box {
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .up {
+            color: green;
+        }
+        .down {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Stock Market Dashboard</h2>
+        
+        <div class="input-group mb-4">
+            <input type="text" class="search-bar" placeholder="Search for stocks, ETFs & more..." id="searchInput">
+        </div>
+        
+        <div class="row">
+            <div class="col-md-3">
+                <div class="market-box bg-light">
+                    <h5>NIFTY 50</h5>
+                    <p class="down">-0.33% ▼</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="market-box bg-light">
+                    <h5>SENSEX</h5>
+                    <p class="down">-0.27% ▼</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="market-box bg-light">
+                    <h5>Nifty Bank</h5>
+                    <p class="up">+0.007% ▲</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="market-box bg-light">
+                    <h5>Nifty IT</h5>
+                    <p class="down">-0.52% ▼</p>
+                </div>
+            </div>
+        </div>
+        
+        <h3 class="mt-4">Top Movers</h3>
+        <table class="table table-bordered table-striped" id="stockTable">
+            <thead>
+                <tr>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>Change</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Stock data rows will be dynamically inserted here -->
+            </tbody>
+        </table>
+
+        <h3 class="mt-4">Add New Stock</h3>
+        <div class="form-group">
+            <input type="text" id="stockName" class="form-control" placeholder="Stock Name">
+        </div>
+        <div class="form-group">
+            <input type="text" id="stockPrice" class="form-control" placeholder="Stock Price">
+        </div>
+        <div class="form-group">
+            <input type="text" id="stockChange" class="form-control" placeholder="Stock Change">
+        </div>
+        <button class="btn btn-primary" onclick="addStock()">Add Stock</button>
+    </div>
+
+    <script>
+        let allStocks = [];
+
+        function fetchStocks() {
+            fetch('http://127.0.0.1:5000/update_stock')
+                .then(response => response.json())
+                .then(data => {
+                    allStocks = data.stocks; // Store all stocks data
+                    let tableBody = document.getElementById("stockTable").getElementsByTagName("tbody")[0];
+                    tableBody.innerHTML = ""; // Clear previous rows
+
+                    // Update stock prices dynamically
+                    data.stocks.forEach((stock) => {
+                        let newRow = tableBody.insertRow();
+                        newRow.innerHTML = `
+                            <td>${stock.name}</td>
+                            <td>₹${stock.price.toFixed(2)}</td>
+                            <td class="${stock.change >= 0 ? 'up' : 'down'}">${stock.change}% ${stock.change >= 0 ? "▲" : "▼"}</td>
+                            <td><button class="btn btn-danger" onclick="deleteStock(this)">Delete</button></td>
+                        `;
+                    });
+
+                    // Update indices dynamically
+                    let marketBoxes = document.querySelectorAll(".market-box p");
+                    data.indices.forEach((index, i) => {
+                        if (marketBoxes[i]) {
+                            marketBoxes[i].textContent = `${index.change}% ${index.change >= 0 ? "▲" : "▼"}`;
+                            marketBoxes[i].className = index.change >= 0 ? "up" : "down";
+                        }
+                    });
+                })
+                .catch(error => console.error("Error fetching stock data:", error));
+        }
+
+        function deleteStock(button) {
+            let row = button.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+        }
+
+        function addStock() {
+            let name = document.getElementById("stockName").value;
+            let price = parseFloat(document.getElementById("stockPrice").value);
+            let change = parseFloat(document.getElementById("stockChange").value);
+
+            if (name && !isNaN(price) && !isNaN(change)) {
+                let newStock = { name, price, change };
+
+                fetch('http://127.0.0.1:5000/add_stock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newStock)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        fetchStocks(); // Refresh the table
+                    } else {
+                        alert("Error adding stock.");
+                    }
+                })
+                .catch(error => console.error("Error adding stock:", error));
+            } else {
+                alert("Please enter valid stock details.");
+            }
+        }
+
+        function searchStocks() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const filteredStocks = allStocks.filter(stock =>
+                stock.name.toLowerCase().includes(searchQuery)
+            );
+
+            // Render filtered stocks in table
+            let tableBody = document.getElementById("stockTable").getElementsByTagName("tbody")[0];
+            tableBody.innerHTML = ""; // Clear previous rows
+
+            filteredStocks.forEach((stock) => {
+                let newRow = tableBody.insertRow();
+                newRow.innerHTML = `
+                    <td>${stock.name}</td>
+                    <td>₹${stock.price.toFixed(2)}</td>
+                    <td class="${stock.change >= 0 ? 'up' : 'down'}">${stock.change}% ${stock.change >= 0 ? "▲" : "▼"}</td>
+                    <td><button class="btn btn-danger" onclick="deleteStock(this)">Delete</button></td>
+                `;
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', searchStocks);
+
+        setInterval(fetchStocks, 4000);
+        fetchStocks();
+    </script>
+</body>
+</html>
