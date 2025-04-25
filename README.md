@@ -1,7 +1,6 @@
 # Stock-Maintenance-System
 
 
-# Stock Maintenance System
 
 This project is a simple Stock Maintenance System with a login page and a dashboard to manage inventory.
 
